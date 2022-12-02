@@ -90,6 +90,11 @@ public class MenuController : MonoBehaviour
         Application.Quit();
     }
 
+    public void LoadSite()
+    {
+        Application.OpenURL("https://github.com/jeti20");
+    }
+
     //Ustawienia dŸwiêku
     public void SetVoulme(float volume)
     {

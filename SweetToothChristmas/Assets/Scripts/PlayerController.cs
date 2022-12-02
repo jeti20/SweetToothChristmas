@@ -1,54 +1,113 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+
+
 
 public class PlayerController : MonoBehaviour
 {
-    private Rigidbody _playerrRb;
-    private GameObject _focalPoint; //chcemy ¿eby si³a bdzia³a³a na gracza tak jak kamera jest obrócona
-    public GameObject _powerUpIndicator;
-    public float _speed = 5f;
+
+    [Header("Player Setting")]
+    public float turnSpeed = 10f;
+    public float runSpeed = 3f;
+    public bool stopMoverment = false;
+    public ParticleSystem particalSystem;
+
+    public bool moving { get; set; }
+
+    float m_Horizontal, m_Vertical;
+    private Vector3 m_MoveVector;
+    private Rigidbody m_Rigidbody;
+    public AudioSource deadSound;
+    public AudioSource collectionSound;
+
+    [HideInInspector]
+    public Animator m_Animator;
+    private Quaternion m_Rotation = Quaternion.identity;
+    private Transform camTrans;
+    private Vector3 camForward;
     public bool _hasPowerup = false;
-    private float _powerUpStregnth = 15;
+    public bool Alive = true;
+    public GameObject mesh;
 
-    // Start is called before the first frame update
-    void Start()
+
+    private Vector3 offset;
+    //public GameObject _powerUpIndicator; //obrÄ™cz po zebraniu cukierka
+    private float _powerUpStregnth = 15; //siÅ‚a odrzucenia wrgoga po cukierki
+
+    void Awake()
     {
-        _playerrRb = GetComponent<Rigidbody>();
-        _focalPoint = GameObject.Find("FocalPoint");
+        m_Rigidbody = GetComponent<Rigidbody>();
+        m_Animator = GetComponent<Animator>();
+        camTrans = Camera.main.transform;
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        float _forwardInput = Input.GetAxis("Vertical");
-        _playerrRb.AddForce(_focalPoint.transform.forward * _forwardInput * _speed);
 
-        _powerUpIndicator.transform.position = transform.position + new Vector3(0, -0.5f, 0);
+    void FixedUpdate()
+    {
+
+        //input 
+        m_Horizontal = Input.GetAxis(Const.Horizontal);
+        m_Vertical = Input.GetAxis(Const.Vetical);
+
+        // move vector 
+        if (camTrans != null)
+        {
+            camForward = Vector3.Scale(camTrans.forward, new Vector3(1, 0, 1).normalized);
+            m_MoveVector = m_Vertical * camForward + m_Horizontal * camTrans.right;
+            m_MoveVector.Normalize();
+        }
+        //animation    
+        bool has_H_Input = !Mathf.Approximately(m_Horizontal, 0);
+        bool has_V_Input = !Mathf.Approximately(m_Vertical, 0);
+
+        if (!stopMoverment) moving = has_H_Input || has_V_Input;
+        else moving = false;
+
+        float inputSpeed = Mathf.Clamp01(Mathf.Abs(m_Horizontal) + Mathf.Abs(m_Vertical));
+
+        m_Animator.SetBool(Const.Moving, moving);
+        m_Animator.SetFloat(Const.Speed, inputSpeed);
+
+        //move and rotate
+        if (moving)
+        {
+            Vector3 desiredForward = Vector3.RotateTowards(transform.forward, m_MoveVector, turnSpeed * Time.deltaTime, 0f);
+            m_Rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desiredForward), turnSpeed);
+            m_Rigidbody.MoveRotation(m_Rotation);
+            m_Rigidbody.MovePosition(m_Rigidbody.position + inputSpeed * m_MoveVector * runSpeed * Time.deltaTime);
+        }
+
+        //po zebraniu PowerUp, poruszanie siÄ™ obwÃ³dki
+        //_powerUpIndicator.transform.position = transform.position + new Vector3(0, -0.5f, 0);
     }
 
-    //usefull beteen coliders
+    //zbieranie PowerUp
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Powerup"))
         {
+            _hasPowerup = false;
+            collectionSound.Play();
             Destroy(other.gameObject);
             _hasPowerup = true;
             StartCoroutine(PowerupCountdownRoutine());
-            _powerUpIndicator.gameObject.SetActive(true);
+            //_powerUpIndicator.gameObject.SetActive(true);
         }
     }
 
     //czas trwania powerup
     IEnumerator PowerupCountdownRoutine()
     {
-        yield return new WaitForSeconds(7);
+        yield return new WaitForSeconds(10
+            );
         _hasPowerup = false;
-        _powerUpIndicator.gameObject.SetActive(false);
+        //_powerUpIndicator.gameObject.SetActive(false);
 
     }
 
-    //better for physics, odrzucanie enemy
+    //odrzucanie wroga po zebraniu cukierka 
     private void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject.CompareTag("Enemy") && _hasPowerup)
@@ -57,8 +116,28 @@ public class PlayerController : MonoBehaviour
             Rigidbody _enemyRigidbody = collision.gameObject.GetComponent<Rigidbody>();
             Vector3 _awayFromPlayer = collision.gameObject.transform.position - transform.position;
             _enemyRigidbody.AddForce(_awayFromPlayer * _powerUpStregnth, ForceMode.Impulse);
-
-            Debug.Log("Collided with: " + collision.gameObject.name + " with powerup set to " + _hasPowerup);
         }
+        else
+        {
+            StartCoroutine(BackToMenu());
+        }
+
+    }
+
+    IEnumerator BackToMenu()
+    {
+        Alive = false;
+        mesh.SetActive(false);
+        this.GetComponent<PlayerController>().enabled = false;
+        this.GetComponent<CapsuleCollider>().enabled = false;
+        particalSystem.Play();
+        deadSound.Play();
+        yield return new WaitForSeconds(1);
+        SceneManager.LoadScene(0);
+        Debug.Log("XD");
     }
 }
+
+
+
+

@@ -9,7 +9,7 @@ public class BallGrowth : MonoBehaviour
 
     private void Awake()
     {
-        scaleChange = new Vector3(0.1f, 0.1f, 0.1f);
+        scaleChange = new Vector3(0.3f, 0.3f, 0.3f);
     }
 
     private void Start()
