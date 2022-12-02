@@ -12,3 +12,5 @@ Bugs to fix:
 
 Things I can add:
 * marking the duration of the buff visable for the player
+
+Short gameplay: https://youtu.be/Eej4FMJSW8Q
